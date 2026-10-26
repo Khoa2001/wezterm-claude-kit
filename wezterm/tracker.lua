@@ -227,7 +227,7 @@ local last_redraw, pulse_flip = {}, {}
 
 -- Inactive panes: slightly dimmed by default, toggled per window by the
 -- "toggle-dim-panes" event.
-local DIM_HSB = { saturation = 0.9, brightness = 0.75 }
+local DIM_HSB = { saturation = 0.8, brightness = 0.6 }
 local NORMAL_HSB = { saturation = 1.0, brightness = 1.0 }
 
 -- set_config_overrides replaces the whole override table, so merge one key into
