@@ -36,6 +36,16 @@ function M.positions(infos)
 	return out
 end
 
+-- Next inactive-pane hsb for the dim toggle. `current` is the window's override
+-- (nil means the config default, which is dimmed): normal flips to dim, anything
+-- else flips to normal.
+function M.toggle_hsb(current, dim, normal)
+	if current and current.saturation == normal.saturation and current.brightness == normal.brightness then
+		return dim
+	end
+	return normal
+end
+
 function M.counts(states)
 	local c = { ["needs-you"] = 0, working = 0, idle = 0 }
 	for _, s in ipairs(states or {}) do
