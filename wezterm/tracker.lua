@@ -225,8 +225,29 @@ end
 -- Per window id: the second of its last pulse repaint, and which way it flipped.
 local last_redraw, pulse_flip = {}, {}
 
+-- Inactive panes: slightly dimmed by default, toggled per window by the
+-- "toggle-dim-panes" event.
+local DIM_HSB = { saturation = 0.9, brightness = 0.75 }
+local NORMAL_HSB = { saturation = 1.0, brightness = 1.0 }
+
+-- set_config_overrides replaces the whole override table, so merge one key into
+-- what the window already has or the pulse and the dim toggle wipe each other.
+local function set_override(window, key, value)
+	local overrides = window:get_config_overrides() or {}
+	overrides[key] = value
+	window:set_config_overrides(overrides)
+end
+
 function M.setup(config)
 	config.status_update_interval = 1000
+	config.inactive_pane_hsb = DIM_HSB
+
+	wezterm.on("toggle-dim-panes", function(window, _)
+		pcall(function()
+			local current = window:get_config_overrides() or {}
+			set_override(window, "inactive_pane_hsb", logic.toggle_hsb(current.inactive_pane_hsb, DIM_HSB, NORMAL_HSB))
+		end)
+	end)
 	-- The right status carries the session counts, so the bar must stay visible
 	-- with a single tab.
 	config.hide_tab_bar_if_only_one_tab = false
@@ -251,7 +272,7 @@ function M.setup(config)
 		if pulsing and now ~= last_redraw[wid] then
 			last_redraw[wid] = now
 			pulse_flip[wid] = not pulse_flip[wid]
-			pcall(window.set_config_overrides, window, { status_update_interval = pulse_flip[wid] and 1000 or 1001 })
+			pcall(set_override, window, "status_update_interval", pulse_flip[wid] and 1000 or 1001)
 		end
 		local items = { { Background = { Color = BAR_BG } }, { Foreground = { Color = BAR_FG } }, { Text = " " } }
 		for _, seg in ipairs(segs) do

@@ -21,8 +21,20 @@ eq("worst empty", logic.worst({}), nil)
 eq("worst unknown only", logic.worst({ "bogus" }), nil)
 eq("worst ignores unknown", logic.worst({ "bogus", "idle" }), "idle")
 
+-- toggle_hsb
+local dim_hsb = { saturation = 0.9, brightness = 0.75 }
+local normal_hsb = { saturation = 1.0, brightness = 1.0 }
+eq("toggle_hsb nil to normal", logic.toggle_hsb(nil, dim_hsb, normal_hsb), normal_hsb)
+eq("toggle_hsb dim to normal", logic.toggle_hsb(dim_hsb, dim_hsb, normal_hsb), normal_hsb)
+eq("toggle_hsb normal to dim", logic.toggle_hsb(normal_hsb, dim_hsb, normal_hsb), dim_hsb)
+eq(
+	"toggle_hsb equal copy to dim",
+	logic.toggle_hsb({ saturation = 1.0, brightness = 1.0 }, dim_hsb, normal_hsb),
+	dim_hsb
+)
+
 -- counts
-local c = logic.counts({ "working", "working", "idle", "needs-you", "bogus" })
+local c =logic.counts({ "working", "working", "idle", "needs-you", "bogus" })
 eq("counts needs-you", c["needs-you"], 1)
 eq("counts working", c.working, 2)
 eq("counts idle", c.idle, 1)
