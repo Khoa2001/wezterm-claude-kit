@@ -46,6 +46,24 @@ function M.toggle_hsb(current, dim, normal)
 	return normal
 end
 
+-- Font size that keeps the narrowest pane near `target` columns. Cell width
+-- scales with font size, so the ideal size is current * min_cols / target.
+-- Shrinks at once when the pane is under target; grows only once a whole
+-- `step` fits, so rounding in the column count cannot flip-flop the size.
+function M.fit_font_size(current, min_cols, target, lo, hi, step)
+	if not (current and min_cols and min_cols > 0) then
+		return current
+	end
+	local ideal = current * min_cols / target
+	local size = current
+	if ideal < current then
+		size = math.floor(ideal / step) * step
+	elseif ideal >= current + step then
+		size = math.floor(ideal / step) * step
+	end
+	return math.max(lo, math.min(hi, size))
+end
+
 function M.counts(states)
 	local c = { ["needs-you"] = 0, working = 0, idle = 0 }
 	for _, s in ipairs(states or {}) do
