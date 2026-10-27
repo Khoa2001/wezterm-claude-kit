@@ -7,6 +7,8 @@ sid=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
 [ -n "$sid" ] || exit 0
 dir=${SESSION_TRACKER_ULTRACAVE_DIR:-$HOME/.claude/state/ultracave}
 flag="$dir/$sid"
+# New prompt restarts the tool-call counter of ultracave-nudge.sh.
+rm -f "$flag.n" 2>/dev/null
 [ -f "$flag" ] || exit 0
 
 why=$(cat "$flag" 2>/dev/null)

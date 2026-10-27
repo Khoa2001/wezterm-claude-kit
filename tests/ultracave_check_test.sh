@@ -75,7 +75,28 @@ test_exits_zero_on_bad_input() {
   printf '{"transcript_path":"/nope"}' | sh "$HOOK"; assert_eq "exit 0 missing file" 0 "$?"
 }
 
-for t in test_flags_filler_reply_without_blocking test_remind_injects_once_and_clears_flag test_remind_silent_without_flag_or_session test_passes_terse_reply test_skips_when_stop_hook_active \
+NUDGE="$HERE/../hooks/ultracave-nudge.sh"
+
+test_nudge_fires_every_nth_call_and_remind_resets() {
+  reset; rm -f "$SESSION_TRACKER_ULTRACAVE_DIR/s1.n"
+  export SESSION_TRACKER_ULTRACAVE_EVERY=3
+  assert_eq "call 1 silent" "" "$(printf '{"session_id":"s1"}' | sh "$NUDGE")"
+  assert_eq "call 2 silent" "" "$(printf '{"session_id":"s1"}' | sh "$NUDGE")"
+  out=$(printf '{"session_id":"s1"}' | sh "$NUDGE")
+  assert_contains "call 3 nudges" "$(printf '%s' "$out" | jq -r .hookSpecificOutput.additionalContext)" "ultracave still on"
+  assert_eq "event name" PostToolUse "$(printf '%s' "$out" | jq -r .hookSpecificOutput.hookEventName)"
+  printf '{"session_id":"s1"}' | sh "$NUDGE" >/dev/null
+  printf '{"session_id":"s1"}' | sh "$REMIND" >/dev/null
+  assert_file_missing "prompt resets counter" "$SESSION_TRACKER_ULTRACAVE_DIR/s1.n"
+  unset SESSION_TRACKER_ULTRACAVE_EVERY
+}
+
+test_nudge_silent_without_session_and_exits_zero() {
+  assert_eq "no session" "" "$(printf '{}' | sh "$NUDGE")"
+  printf 'garbage' | sh "$NUDGE"; assert_eq "exit 0" 0 "$?"
+}
+
+for t in test_nudge_fires_every_nth_call_and_remind_resets test_nudge_silent_without_session_and_exits_zero test_flags_filler_reply_without_blocking test_remind_injects_once_and_clears_flag test_remind_silent_without_flag_or_session test_passes_terse_reply test_skips_when_stop_hook_active \
   test_skips_questions_and_short_replies test_ignores_code_blocks test_prefers_last_assistant_message_over_stale_transcript test_exits_zero_on_bad_input; do
   ( "$t" )
 done
