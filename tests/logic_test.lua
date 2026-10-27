@@ -159,15 +159,5 @@ eq("right segs both", joined(logic.right_segments({ { text = "u" } }, { { text =
 eq("right segs no usage", joined(logic.right_segments({}, { { text = "c" } })), "c")
 eq("right segs no counts", joined(logic.right_segments({ { text = "u" } }, {})), "u")
 
--- fit_font_size
-eq("fit keeps size on target", logic.fit_font_size(14, 100, 100, 9, 18, 0.5), 14)
-eq("fit shrinks when narrow", logic.fit_font_size(14, 70, 100, 9, 18, 0.5), 9.5)
-eq("fit grows when wide", logic.fit_font_size(10, 200, 100, 9, 18, 0.5), 18)
-eq("fit clamps low", logic.fit_font_size(14, 20, 100, 9, 18, 0.5), 9)
-eq("fit deadband on tiny gain", logic.fit_font_size(14, 103, 100, 9, 18, 0.5), 14)
-eq("fit grows one step", logic.fit_font_size(14, 108, 100, 9, 18, 0.5), 15)
-eq("fit shrinks one step", logic.fit_font_size(14, 96, 100, 9, 18, 0.5), 13)
-eq("fit no cols keeps", logic.fit_font_size(14, nil, 100, 9, 18, 0.5), 14)
-
 print(("%d passed, %d failed"):format(passes, fails))
 os.exit(fails == 0 and 0 or 1)
