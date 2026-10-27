@@ -238,31 +238,8 @@ local function set_override(window, key, value)
 	window:set_config_overrides(overrides)
 end
 
--- Font size is per window in WezTerm, so "adapt to the pane" means: the
--- narrowest pane in the active tab keeps about FIT_COLS columns. The size
--- never grows past FIT_MAX, so a lone full-screen pane stays at the base size.
-local FIT_COLS, FIT_MIN, FIT_MAX, FIT_STEP = 100, 9, 12, 0.5
-
-local function fit_font(window)
-	local panes = window:active_tab():panes_with_info()
-	local min_cols
-	for _, info in ipairs(panes) do
-		if not min_cols or info.width < min_cols then
-			min_cols = info.width
-		end
-	end
-	local current = window:effective_config().font_size
-	local size = logic.fit_font_size(current, min_cols, FIT_COLS, FIT_MIN, FIT_MAX, FIT_STEP)
-	if size and size ~= current then
-		set_override(window, "font_size", size)
-	end
-end
-
 function M.setup(config)
 	config.status_update_interval = 1000
-	-- Keep the window pixel size when the font size changes; otherwise the
-	-- fit would resize the window and chase its own tail.
-	config.adjust_window_size_when_changing_font_size = false
 	config.inactive_pane_hsb = DIM_HSB
 
 	wezterm.on("toggle-dim-panes", function(window, _)
@@ -277,7 +254,6 @@ function M.setup(config)
 
 	wezterm.on("update-right-status", function(window, _)
 		pcall(write_positions)
-		pcall(fit_font, window)
 		-- No width (API change, odd window) counts as wide.
 		local cols_ok, cols = pcall(function()
 			return window:active_tab():get_size().cols
