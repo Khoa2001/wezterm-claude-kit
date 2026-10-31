@@ -2,13 +2,18 @@
 
 **Know which Claude session needs you, without opening every tab.**
 
-If you run several Claude Code sessions at once, one per task or git worktree, it is easy to lose track of which one is working, which one finished, and which one is waiting for your answer. This kit puts that information where you already look: the WezTerm tab bar and each pane's status line. No background process, no extra window.
+Run several Claude Code sessions in WezTerm panes and see, at a glance, which one is working, which finished and which waits for you. The state shows in the tab bar and in each pane's status line. No background process, no extra window.
 
-![A WezTerm window with four Claude panes. The tab bar shows a colored dot and repo:branch per tab, and one tab is rose because a session needs you. Each pane has a numbered, colored status line.](docs/img/hero.svg)
+![A WezTerm window with four Claude panes. The tab bar shows a colored dot and repo:branch per tab, and one tab is rose because a session needs you. The focused pane is bright, the others dimmed, and each pane has a numbered, colored status line.](docs/img/hero.svg)
 
 ## What you get
 
-**A tab bar that tells you what is going on.** Each tab shows `repo:branch` of the focused pane and a dot for the busiest state inside it. A tab with a session waiting for you turns rose, so you can spot it from across the room. On the right: how many sessions are waiting, working or idle, and your 5-hour and 7-day usage.
+- **Tab bar.** Each tab shows `repo:branch` and a dot for its busiest state. A tab that needs you turns rose. The right side shows how many sessions are waiting, working and idle, plus your 5-hour and 7-day usage. In a narrow window the counts become colored dots.
+- **Status line per pane.** Model, repo, branch, changed lines (`±N`), commits ahead (`↑N`) and context percent (green, amber, rose). With several panes in a tab, each gets a numbered badge in its own color. It shortens itself to fit narrow panes and always keeps the context percent.
+- **Sound and banner.** A ping when a turn ends. A different sound plus a macOS banner when a session needs you, only while WezTerm is not the frontmost app.
+- **Dimmed inactive panes.** Your focused pane stays bright. `⌘⇧D` turns the dimming off and on.
+- **Layouts.** One key opens a new tab with `claude` in every pane (2x2 or 4x2).
+- **Restore.** After a WezTerm restart, one key brings back your panes and resumes each Claude session.
 
 | Dot | Meaning |
 | --- | --- |
@@ -16,19 +21,26 @@ If you run several Claude Code sessions at once, one per task or git worktree, i
 | yellow | working |
 | rose tab | needs you: a permission prompt or a question |
 
-**A status line that shows where each session stands.** The model's short name (`opus`, `sonnet`, `haiku`, `fable`) in dim gray, then repo and branch, how many lines you have changed (`±N`), how many commits you are ahead of the default branch (`↑N`), and the context percent, which turns amber, then rose, as the window fills. When a tab has several panes, each gets a rounded numbered badge before the model name, and its color also tints that pane's repo and branch so you can tell panes apart at a glance.
-
-The line fits itself to the pane. In a narrow pane it drops the changes and commits first, then shortens the branch, then drops it, then shortens the repo name. The context percent always stays.
-
 ![Anatomy of the status line, the context percent at 7, 62 and 91 percent, and how the line shortens in a narrow pane.](docs/img/statusline.svg)
 
-**A sound when a session finishes.** A soft "ping" so you can keep your eyes on something else.
+## Hotkeys
+
+Bound in `~/.wezterm.lua` (step 2 below).
+
+| Keys | What it does |
+| --- | --- |
+| `⌘⇧D` | Dim or undim inactive panes |
+| `⌘⇧1` | New tab, 2x2 panes, `claude` in each |
+| `⌘⇧2` | New tab, 4 columns by 2 rows, `claude` in each |
+| `⌘⇧R` | Restore the layout and sessions saved before the last restart |
+
+![Cmd+Shift+1 opens a 2 by 2 grid of Claude panes, Cmd+Shift+2 opens 4 columns by 2 rows, and Cmd+Shift+R restores the layout saved before the last restart.](docs/img/layouts.svg)
 
 ## Quick start
 
-You need macOS, [WezTerm](https://wezterm.org), [Claude Code](https://claude.com/claude-code), `jq` and `git`. It was built and tested on WezTerm `20240203`.
+You need macOS, [WezTerm](https://wezterm.org), [Claude Code](https://claude.com/claude-code), `jq` and `git`. Built and tested on WezTerm `20240203`.
 
-**1. Install the hooks and the status line.** This edits `~/.claude/settings.json` and saves a timestamped backup next to it first. Running it twice is safe.
+**1. Install the hooks and status line.** This edits `~/.claude/settings.json` after saving a timestamped backup. Running it twice is safe.
 
 ```sh
 git clone https://github.com/Khoa2001/wezterm-claude-kit.git
@@ -36,77 +48,48 @@ cd wezterm-claude-kit
 bash install.sh
 ```
 
-**2. Add the tab bar to `~/.wezterm.lua`.** Change the path to where you cloned the repo. If you already have a `format-tab-title` handler, merge the idea into it rather than adding a second one.
+**2. Add the tab bar and hotkeys to `~/.wezterm.lua`.** Copy [`docs/wezterm.example.lua`](docs/wezterm.example.lua), or merge it into your config, and set the path to your clone. It has the tab handler, the hotkeys above and `tracker.setup(config)`.
 
-```lua
-local wezterm = require("wezterm")
-local config = wezterm.config_builder()
-config.tab_max_width = 32 -- room for repo:branch
-
-package.path = package.path .. ";/path/to/wezterm-claude-kit/wezterm/?.lua"
-local tracker = require("tracker")
-
-wezterm.on("format-tab-title", function(tab, _, _, _, _, max_width)
-  local view = tracker.tab_view(tab)
-  local needs_you = view.state == "needs-you"
-  local bg, fg = "#312f3d", "#9492a5"
-  if tab.is_active then bg, fg = "#c4a7e7", "#111111" end
-  if needs_you then bg, fg = "#eb6f92", "#111111" end
-
-  local title = view.title or tab.active_pane.title
-  local label = string.format("[%d] %s", tab.tab_index + 1, title)
-  local items = { { Background = { Color = bg } }, { Foreground = { Color = fg } }, { Text = " " } }
-  for _, item in ipairs(tracker.dot(view.state, needs_you and fg or nil)) do
-    table.insert(items, item)
-  end
-  table.insert(items, { Foreground = { Color = fg } })
-  table.insert(items, { Text = wezterm.truncate_right(label, max_width - 4) .. " " })
-  return items
-end)
-
-tracker.setup(config) -- counts and usage on the right, clean-up at startup
-
-return config
-```
-
-**3. Restart your Claude sessions** so they load the hooks. WezTerm reloads its own config automatically.
+**3. Restart your Claude sessions** so they load the hooks. WezTerm reloads its own config.
 
 To remove everything, run `bash uninstall.sh`. It backs up `settings.json` again and removes only this kit's entries. Delete the lines you added to `~/.wezterm.lua` by hand.
 
 ## Settings
 
-All optional. Put them in the `env` block of `~/.claude/settings.json` or in your shell profile.
+All optional. Set them in the `env` block of `~/.claude/settings.json` or in your shell profile.
 
 | Variable | What it does |
 | --- | --- |
-| `SESSION_TRACKER_SOUND` | Path to another sound file. Empty turns the sound off. Default: `/System/Library/Sounds/Ping.aiff`. |
-| `SESSION_TRACKER_PLAYER` | Program that plays the sound. Default: `afplay`. |
+| `SESSION_TRACKER_SOUND` | Sound file for a finished turn. Empty turns it off. Default: `Ping.aiff`. |
+| `SESSION_TRACKER_SOUND_NEEDS` | Sound file when a session needs you. Empty turns it off. Default: `Glass.aiff`. |
+| `SESSION_TRACKER_NOTIFY` | Set to empty to turn the macOS banner off. |
+| `SESSION_TRACKER_PLAYER` | Program that plays sounds. Default: `afplay`. |
 
 ## Good to know
 
 - **"Needs you" means a permission prompt or a question.** A turn that ends with a plain question in text looks idle.
 - **Pressing Esc mid-turn** can leave a pane yellow until its next event.
-- **The sound plays every time a session finishes**, even for the pane you are looking at. A hook cannot tell which pane has focus.
-- **The tab bar stays visible with a single tab**, because the counts and usage live there. `tracker.setup` turns off `hide_tab_bar_if_only_one_tab`.
-- **The status line finds the pane width from the pane's terminal.** If it cannot, it shows everything and your terminal clips it.
-- **Usage shows `n/a`** when the usage numbers are older than 15 minutes.
+- **The done sound plays for every pane**, even the one you look at. A hook cannot tell which pane has focus.
+- **Usage shows `n/a`** when the numbers are older than 15 minutes.
+- **Layouts open a new tab**, since WezTerm cannot reshape live panes. Restore opens new windows with even pane sizes; close WezTerm's empty startup window. Non-Claude panes come back as plain shells.
+- **`install.sh` also adds three small hooks** that keep Claude's replies in the terse "ultracave" style: one flags a wordy reply, one reminds Claude on your next prompt, one nudges every 8th tool call (`SESSION_TRACKER_ULTRACAVE_EVERY`). `uninstall.sh` removes them.
 
 ## How it works
 
 ![Claude hooks write one small file per pane. The status line and the WezTerm tab bar read those files.](docs/img/how-it-works.svg)
 
-Claude Code runs a small hook script on events such as a prompt, a tool call, a permission request and the end of a turn. The script writes one file per WezTerm pane, named after the pane's id. The WezTerm tab bar reads all of them. The status line shows live git and the context percent, and only needs its pane number from WezTerm. Nothing runs in the background, and every part is written to fail quietly: if anything goes wrong you see less, never a broken terminal.
+Claude Code runs a hook script on events such as a prompt, a tool call, a permission request and the end of a turn. The script writes one file per WezTerm pane, named after the pane's id. The tab bar reads them all. The status line shows live git and the context percent, and only needs its pane number from WezTerm. Every part fails quietly: if something goes wrong you see less, never a broken terminal.
 
 <details>
 <summary>Technical details</summary>
 
-- **State file:** `~/.claude/state/panes/<WEZTERM_PANE>.json` with `{"state","repo","branch","cwd","session_id","ts"}`. States are `working`, `needs-you` and `idle`. Files are wiped when WezTerm starts, because pane ids restart.
+- **State file:** `~/.claude/state/panes/<WEZTERM_PANE>.json` with `{"state","repo","branch","cwd","session_id","ts","since"}`. States: `working`, `needs-you`, `idle`. `since` is when the pane entered its state. Files are wiped at WezTerm startup, because pane ids restart.
 - **Hook events:** `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SessionStart`, `SessionEnd`. Subagent events are ignored except permission prompts and notifications.
-- **Status line:** `statusline/statusline-command.sh`. Repo, branch, changed-line count and ahead count come from live git. The ahead count compares with `origin`'s default branch and never runs `git fetch`. It does not read the state files.
-- **Pane numbers:** WezTerm writes `~/.claude/state/panes/<WEZTERM_PANE>.pos` with the pane's reading-order number, only while its tab has several panes. The status line turns it into the badge and its color.
-- **Narrow panes:** Claude Code passes no width, so the script walks up its parent processes to the first one with a terminal and reads that terminal's width with `stty`.
+- **Status line:** `statusline/statusline-command.sh`. Git data is live; the ahead count compares with `origin`'s default branch and never runs `git fetch`. Pane width comes from the first parent process with a terminal, read with `stty`.
+- **Pane numbers:** WezTerm writes `<WEZTERM_PANE>.pos` next to the state files while a tab has several panes.
+- **Layout snapshot:** `~/.claude/state/layout.json`, written every 10 seconds when it changed and holds a Claude session. At startup it moves to `layout.prev.json`, which `⌘⇧R` reads.
 - **Usage numbers:** read from `/tmp/.claude_usage_cache`, written by `~/.claude/fetch-usage.sh`, which is not part of this repo.
 - **Tests:** `sh tests/run.sh` (needs `jq`, `git` and `luajit`).
-- **Contributing:** see [`CLAUDE.md`](CLAUDE.md) for the architecture and the rules that are easy to break, and [`docs/`](docs/) for the original design and plan.
+- **Contributing:** see [`CLAUDE.md`](CLAUDE.md) for the architecture and rules that are easy to break, and [`docs/`](docs/) for the original design and plan.
 
 </details>
