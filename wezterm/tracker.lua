@@ -71,14 +71,18 @@ end
 -- What a tab should show: `state` is the worst state among its Claude panes
 -- (nil when none), `title` is "repo:branch" of the focused pane (nil when that
 -- pane has no state record), `since` is when the newest needs-you pane started
--- waiting (nil unless the tab needs you). Never raises.
+-- waiting (nil unless the tab needs you), `age` is how long the tab has been in
+-- its state ("4m", "15m!", "" when under a minute). The age counts from the
+-- oldest pane in the worst state. Never raises.
 function M.tab_view(tab)
 	local ok, view = pcall(function()
+		local recs = {}
 		local states = {}
 		local since
 		for _, pane in ipairs(wezterm.mux.get_tab(tab.tab_id):panes()) do
 			local rec = M.state_of(pane:pane_id())
 			if rec then
+				recs[#recs + 1] = rec
 				states[#states + 1] = rec.state
 				if rec.state == "needs-you" and type(rec.since) == "number" and (not since or rec.since > since) then
 					since = rec.since
@@ -87,10 +91,17 @@ function M.tab_view(tab)
 		end
 		local focused = M.state_of(tab.active_pane.pane_id)
 		local state = logic.worst(states)
+		local oldest
+		for _, rec in ipairs(recs) do
+			if rec.state == state and type(rec.since) == "number" and (not oldest or rec.since < oldest) then
+				oldest = rec.since
+			end
+		end
 		return {
 			state = state,
 			title = logic.tab_label(focused, nil),
 			since = state == "needs-you" and since or nil,
+			age = logic.tab_age(state, oldest, os.time()),
 		}
 	end)
 	if ok then
@@ -144,9 +155,12 @@ end
 
 -- Pieces of the right status: usage first, counts last. compact swaps words
 -- for colored dots and drops the reset countdowns. The second result is true
--- while a needs-you pane is still inside its pulse window.
+-- while a needs-you pane is still inside its pulse window. The third result is
+-- a signature of every pane's tab age, so the caller can repaint the tab bar
+-- when one age text ticks over.
 local function right_status_segments(compact)
 	local states = {}
+	local ages = {}
 	local pulsing = false
 	local now = os.time()
 	for _, window in ipairs(wezterm.mux.all_windows()) do
@@ -155,6 +169,7 @@ local function right_status_segments(compact)
 				local rec = M.state_of(pane:pane_id())
 				if rec then
 					states[#states + 1] = rec.state
+					ages[#ages + 1] = logic.tab_age(rec.state, rec.since, now)
 					if rec.state == "needs-you" and logic.pulse_active(rec.since, now) then
 						pulsing = true
 					end
@@ -162,7 +177,8 @@ local function right_status_segments(compact)
 			end
 		end
 	end
-	return logic.right_segments(usage_segments(compact), logic.count_segments(logic.counts(states), compact)), pulsing
+	local segs = logic.right_segments(usage_segments(compact), logic.count_segments(logic.counts(states), compact))
+	return segs, pulsing, table.concat(ages, ",")
 end
 
 -- Pane number within its tab, for the status line badge. Written next to the
@@ -223,7 +239,7 @@ local function wipe_state_files()
 end
 
 -- Per window id: the second of its last pulse repaint, and which way it flipped.
-local last_redraw, pulse_flip = {}, {}
+local last_redraw, pulse_flip, last_ages = {}, {}, {}
 
 -- Inactive panes: slightly dimmed by default, toggled per window by the
 -- "toggle-dim-panes" event.
@@ -259,18 +275,20 @@ function M.setup(config)
 			return window:active_tab():get_size().cols
 		end)
 		local compact = cols_ok and type(cols) == "number" and cols < logic.COMPACT_COLS
-		local ok, segs, pulsing = pcall(right_status_segments, compact)
+		local ok, segs, pulsing, ages = pcall(right_status_segments, compact)
 		if not ok then
 			segs = {}
 		end
 		-- WezTerm re-runs format-tab-title only when the tab bar changes, not on
 		-- the status tick. Flipping an inert option once per second while a tab
-		-- pulses makes it redraw; more often than that loops (each override
-		-- re-fires this handler).
+		-- pulses, or once when a tab age ticks over, makes it redraw; more often
+		-- than that loops (each override re-fires this handler).
 		local now = os.time()
 		local wid = window:window_id()
-		if pulsing and now ~= last_redraw[wid] then
+		local aged = ok and ages ~= last_ages[wid]
+		if (pulsing or aged) and now ~= last_redraw[wid] then
 			last_redraw[wid] = now
+			last_ages[wid] = ages
 			pulse_flip[wid] = not pulse_flip[wid]
 			pcall(set_override, window, "status_update_interval", pulse_flip[wid] and 1000 or 1001)
 		end
