@@ -264,20 +264,9 @@ local PRESETS = {
 		{ from = 1, dir = "Bottom", size = 0.5 },
 		{ from = 2, dir = "Bottom", size = 0.5 },
 	},
-	-- One big pane on the left (2/3), three equal panes stacked on the right.
-	["big-3"] = {
-		{},
-		{ from = 1, dir = "Right", size = 1 / 3 },
-		{ from = 2, dir = "Bottom", size = 2 / 3 },
-		{ from = 3, dir = "Bottom", size = 0.5 },
-	},
-	["main-side"] = {
-		{},
-		{ from = 1, dir = "Right", size = 0.4 },
-	},
 }
 
-M.PRESET_NAMES = { "2x2", "big-3", "main-side" }
+M.PRESET_NAMES = { "2x2" }
 
 -- Steps for a preset (a fresh copy), or nil for an unknown name.
 function M.preset_steps(name)

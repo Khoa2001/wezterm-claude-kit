@@ -238,12 +238,12 @@ local function areas(name)
 	end
 	return table.concat(out, " ")
 end
-eq("preset names", table.concat(logic.PRESET_NAMES, ","), "2x2,big-3,main-side")
+eq("preset names", table.concat(logic.PRESET_NAMES, ","), "2x2")
 eq("preset unknown", logic.preset_steps("nope"), nil)
 eq("preset nil", logic.preset_steps(nil), nil)
 eq("preset 2x2 panes", #logic.preset_steps("2x2"), 4)
-eq("preset big-3 panes", #logic.preset_steps("big-3"), 4)
-eq("preset main-side panes", #logic.preset_steps("main-side"), 2)
+eq("preset big-3 is gone", logic.preset_steps("big-3"), nil)
+eq("preset main-side is gone", logic.preset_steps("main-side"), nil)
 eq("preset first step has no from", logic.preset_steps("2x2")[1].from, nil)
 for _, name in ipairs(logic.PRESET_NAMES) do
 	local ok = true
@@ -256,8 +256,6 @@ for _, name in ipairs(logic.PRESET_NAMES) do
 	eq("preset " .. name .. " steps valid", ok, true)
 end
 eq("preset 2x2 areas equal", areas("2x2"), "0.250 0.250 0.250 0.250")
-eq("preset big-3 areas", areas("big-3"), "0.667 0.111 0.111 0.111")
-eq("preset main-side areas", areas("main-side"), "0.600 0.400")
 local copy = logic.preset_steps("2x2")
 copy[2].size = 0.9
 eq("preset steps are copies", logic.preset_steps("2x2")[2].size, 0.5)
