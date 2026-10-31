@@ -235,9 +235,21 @@ local PRESETS = {
 		{ from = 1, dir = "Bottom", size = 0.5 },
 		{ from = 2, dir = "Bottom", size = 0.5 },
 	},
+	-- Four columns, two rows: the top row first (panes 1-4), then each pane
+	-- splits the one above it (panes 5-8). All eight come out the same size.
+	["4x2"] = {
+		{},
+		{ from = 1, dir = "Right", size = 0.75 },
+		{ from = 2, dir = "Right", size = 2 / 3 },
+		{ from = 3, dir = "Right", size = 0.5 },
+		{ from = 1, dir = "Bottom", size = 0.5 },
+		{ from = 2, dir = "Bottom", size = 0.5 },
+		{ from = 3, dir = "Bottom", size = 0.5 },
+		{ from = 4, dir = "Bottom", size = 0.5 },
+	},
 }
 
-M.PRESET_NAMES = { "2x2" }
+M.PRESET_NAMES = { "2x2", "4x2" }
 
 -- Steps for a preset (a fresh copy), or nil for an unknown name.
 function M.preset_steps(name)
