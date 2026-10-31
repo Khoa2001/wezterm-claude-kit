@@ -148,26 +148,6 @@ eq("usage stale tone", logic.usage_segments(lines, 901, now, false)[1].tone, nil
 eq("usage junk pct no tone", logic.usage_segments({ "x", "y", "2026-10-19T04:37:00+00:00", "2026-10-23T12:00:00+00:00" }, 60, now, false)[2].tone, nil)
 eq("usage blank lines", joined(logic.usage_segments({ "", "", "", "" }, 60, now, false)), "usage n/a")
 
--- age_text, tab_age
-eq("age under a minute is blank", logic.age_text(59), "")
-eq("age one minute", logic.age_text(60), "1m")
-eq("age 4m", logic.age_text(4 * 60 + 59), "4m")
-eq("age 59m", logic.age_text(59 * 60 + 59), "59m")
-eq("age one hour", logic.age_text(3600), "1h")
-eq("age 2h", logic.age_text(2 * 3600 + 1800), "2h")
-eq("age negative is blank", logic.age_text(-5), "")
-eq("age nil is blank", logic.age_text(nil), "")
-eq("age non-number is blank", logic.age_text("x"), "")
-eq("tab_age needs-you fresh", logic.tab_age("needs-you", 1000, 1000 + 4 * 60), "4m")
-eq("tab_age needs-you stale bang", logic.tab_age("needs-you", 1000, 1000 + 15 * 60), "15m!")
-eq("tab_age needs-you just below stale", logic.tab_age("needs-you", 1000, 1000 + 14 * 60 + 59), "14m")
-eq("tab_age working no bang", logic.tab_age("working", 1000, 1000 + 20 * 60), "20m")
-eq("tab_age idle no bang", logic.tab_age("idle", 1000, 1000 + 2 * 3600), "2h")
-eq("tab_age under a minute blank", logic.tab_age("needs-you", 1000, 1030), "")
-eq("tab_age nil since blank", logic.tab_age("needs-you", nil, 5000), "")
-eq("tab_age future since blank", logic.tab_age("needs-you", 6000, 5000), "")
-eq("tab_age nil state blank", logic.tab_age(nil, 1000, 9000), "")
-
 -- valid_sid, resume_text, has_claude
 local SID = "8f2a1c3e-4b5d-4e6f-9a7b-0c1d2e3f4a5b"
 eq("valid_sid uuid", logic.valid_sid(SID), true)
@@ -238,12 +218,12 @@ local function areas(name)
 	end
 	return table.concat(out, " ")
 end
-eq("preset names", table.concat(logic.PRESET_NAMES, ","), "2x2,big-3,main-side")
+eq("preset names", table.concat(logic.PRESET_NAMES, ","), "2x2")
 eq("preset unknown", logic.preset_steps("nope"), nil)
 eq("preset nil", logic.preset_steps(nil), nil)
 eq("preset 2x2 panes", #logic.preset_steps("2x2"), 4)
-eq("preset big-3 panes", #logic.preset_steps("big-3"), 4)
-eq("preset main-side panes", #logic.preset_steps("main-side"), 2)
+eq("preset big-3 is gone", logic.preset_steps("big-3"), nil)
+eq("preset main-side is gone", logic.preset_steps("main-side"), nil)
 eq("preset first step has no from", logic.preset_steps("2x2")[1].from, nil)
 for _, name in ipairs(logic.PRESET_NAMES) do
 	local ok = true
@@ -256,8 +236,6 @@ for _, name in ipairs(logic.PRESET_NAMES) do
 	eq("preset " .. name .. " steps valid", ok, true)
 end
 eq("preset 2x2 areas equal", areas("2x2"), "0.250 0.250 0.250 0.250")
-eq("preset big-3 areas", areas("big-3"), "0.667 0.111 0.111 0.111")
-eq("preset main-side areas", areas("main-side"), "0.600 0.400")
 local copy = logic.preset_steps("2x2")
 copy[2].size = 0.9
 eq("preset steps are copies", logic.preset_steps("2x2")[2].size, 0.5)

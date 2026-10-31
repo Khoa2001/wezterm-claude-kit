@@ -148,35 +148,6 @@ function M.pulse_active(since, now)
 	return type(since) == "number" and now >= since and now - since <= M.PULSE_SECONDS
 end
 
--- A needs-you tab waiting this long gets a "!" after its age.
-M.STALE_SECONDS = 900
-
--- "4m" or "2h" for an age in seconds, rounded down. Under a minute, negative
--- or not a number gives "" so fresh states stay quiet.
-function M.age_text(secs)
-	if type(secs) ~= "number" or secs < 60 then
-		return ""
-	end
-	if secs < 3600 then
-		return ("%dm"):format(math.floor(secs / 60))
-	end
-	return ("%dh"):format(math.floor(secs / 3600))
-end
-
--- Age for a tab: how long its state has lasted, with "!" once a needs-you tab
--- has waited STALE_SECONDS. "" when `since` is missing or in the future.
-function M.tab_age(state, since, now)
-	if not state or type(since) ~= "number" or type(now) ~= "number" or now < since then
-		return ""
-	end
-	local age = now - since
-	local text = M.age_text(age)
-	if text ~= "" and state == "needs-you" and age >= M.STALE_SECONDS then
-		text = text .. "!"
-	end
-	return text
-end
-
 local SID_PATTERN = "^" .. ("%x"):rep(8) .. "%-" .. ("%x"):rep(4) .. "%-" .. ("%x"):rep(4) .. "%-" .. ("%x"):rep(4) .. "%-" .. ("%x"):rep(12) .. "$"
 
 -- True for a Claude session id (uuid). Ids are typed into a shell on restore,
@@ -264,20 +235,9 @@ local PRESETS = {
 		{ from = 1, dir = "Bottom", size = 0.5 },
 		{ from = 2, dir = "Bottom", size = 0.5 },
 	},
-	-- One big pane on the left (2/3), three equal panes stacked on the right.
-	["big-3"] = {
-		{},
-		{ from = 1, dir = "Right", size = 1 / 3 },
-		{ from = 2, dir = "Bottom", size = 2 / 3 },
-		{ from = 3, dir = "Bottom", size = 0.5 },
-	},
-	["main-side"] = {
-		{},
-		{ from = 1, dir = "Right", size = 0.4 },
-	},
 }
 
-M.PRESET_NAMES = { "2x2", "big-3", "main-side" }
+M.PRESET_NAMES = { "2x2" }
 
 -- Steps for a preset (a fresh copy), or nil for an unknown name.
 function M.preset_steps(name)
