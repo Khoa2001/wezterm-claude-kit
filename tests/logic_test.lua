@@ -168,6 +168,55 @@ eq("tab_age nil since blank", logic.tab_age("needs-you", nil, 5000), "")
 eq("tab_age future since blank", logic.tab_age("needs-you", 6000, 5000), "")
 eq("tab_age nil state blank", logic.tab_age(nil, 1000, 9000), "")
 
+-- valid_sid, resume_text, has_claude
+local SID = "8f2a1c3e-4b5d-4e6f-9a7b-0c1d2e3f4a5b"
+eq("valid_sid uuid", logic.valid_sid(SID), true)
+eq("valid_sid uppercase hex", logic.valid_sid(SID:upper()), true)
+eq("valid_sid empty", logic.valid_sid(""), false)
+eq("valid_sid nil", logic.valid_sid(nil), false)
+eq("valid_sid number", logic.valid_sid(5), false)
+eq("valid_sid shell injection", logic.valid_sid("8f2a1c3e-4b5d-4e6f-9a7b-0c1d2e3f4a5b; rm -rf ~"), false)
+eq("valid_sid wrong length", logic.valid_sid("8f2a1c3e-4b5d"), false)
+eq("valid_sid non-hex", logic.valid_sid("zf2a1c3e-4b5d-4e6f-9a7b-0c1d2e3f4a5b"), false)
+eq("resume_text", logic.resume_text(SID), "claude --resume " .. SID .. "\n")
+eq("resume_text invalid", logic.resume_text("x; ls"), nil)
+eq("has_claude none", logic.has_claude({ { tabs = { { panes = { { cwd = "/a" } } } } } }), false)
+eq("has_claude one", logic.has_claude({ { tabs = { { panes = { { cwd = "/a" }, { cwd = "/b", sid = SID } } } } } }), true)
+eq("has_claude bad sid", logic.has_claude({ { tabs = { { panes = { { sid = "nope" } } } } } }), false)
+eq("has_claude nil", logic.has_claude(nil), false)
+eq("has_claude empty", logic.has_claude({}), false)
+
+-- split_plan: rebuild a tab's panes by splitting, in reading order
+local function plan_str(panes)
+	local out = {}
+	for _, step in ipairs(logic.split_plan(panes)) do
+		out[#out + 1] = step.index .. (step.from and (":" .. step.dir .. "@" .. step.from) or "")
+	end
+	return table.concat(out, " ")
+end
+eq("plan single", plan_str({ { left = 0, top = 0 } }), "1")
+eq("plan empty", plan_str({}), "")
+eq("plan side by side", plan_str({ { left = 0, top = 0 }, { left = 80, top = 0 } }), "1 2:Right@1")
+eq("plan stacked", plan_str({ { left = 0, top = 0 }, { left = 0, top = 20 } }), "1 2:Bottom@1")
+eq(
+	"plan 2x2",
+	plan_str({ { left = 0, top = 0 }, { left = 80, top = 0 }, { left = 0, top = 20 }, { left = 80, top = 20 } }),
+	"1 2:Right@1 3:Bottom@1 4:Bottom@2"
+)
+eq(
+	"plan big left, three stacked right",
+	plan_str({ { left = 0, top = 0 }, { left = 80, top = 0 }, { left = 80, top = 10 }, { left = 80, top = 20 } }),
+	"1 2:Right@1 3:Bottom@2 4:Bottom@3"
+)
+eq(
+	"plan input order does not matter, index is original",
+	plan_str({ { left = 80, top = 0 }, { left = 0, top = 0 } }),
+	"2 1:Right@2"
+)
+eq("plan nearest above wins", plan_str({ { left = 0, top = 0 }, { left = 0, top = 10 }, { left = 0, top = 20 } }), "1 2:Bottom@1 3:Bottom@2")
+eq("plan odd geometry falls back to right of previous", plan_str({ { left = 0, top = 0 }, { left = 40, top = 20 } }), "1 2:Right@1")
+eq("plan missing coords treated as 0", plan_str({ {}, {} }), "1 2:Right@1")
+
 -- count_segments, right_segments
 local cs = { ["needs-you"] = 1, working = 2, idle = 0 }
 eq("count wide", logic.count_segments(cs, false)[1].text, "1 waiting · 2 working")

@@ -177,6 +177,84 @@ function M.tab_age(state, since, now)
 	return text
 end
 
+local SID_PATTERN = "^" .. ("%x"):rep(8) .. "%-" .. ("%x"):rep(4) .. "%-" .. ("%x"):rep(4) .. "%-" .. ("%x"):rep(4) .. "%-" .. ("%x"):rep(12) .. "$"
+
+-- True for a Claude session id (uuid). Ids are typed into a shell on restore,
+-- so anything else must never get through.
+function M.valid_sid(sid)
+	return type(sid) == "string" and sid:match(SID_PATTERN) ~= nil
+end
+
+-- Text that resumes a session in a shell, or nil for an invalid id.
+function M.resume_text(sid)
+	if not M.valid_sid(sid) then
+		return nil
+	end
+	return "claude --resume " .. sid .. "\n"
+end
+
+-- True when a layout snapshot ({windows -> {tabs -> {panes}}}) holds at least
+-- one Claude session worth restoring.
+function M.has_claude(snapshot)
+	for _, window in ipairs(type(snapshot) == "table" and snapshot or {}) do
+		for _, tab in ipairs(window.tabs or {}) do
+			for _, pane in ipairs(tab.panes or {}) do
+				if M.valid_sid(pane.sid) then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+-- How to rebuild one tab's panes by splitting. `panes` is a list of
+-- {left=, top=}; returns steps in reading order: {index=, from=, dir=}. The
+-- first step has no from/dir (it is the tab's first pane). Later panes split
+-- the nearest pane above them in the same column ("Bottom"), else the nearest
+-- pane to their left in the same row ("Right"), else the previous pane. Split
+-- sizes come out even, so this restores the shape and not the exact sizes.
+function M.split_plan(panes)
+	local order = {}
+	for i, p in ipairs(panes or {}) do
+		order[i] = { index = i, left = p.left or 0, top = p.top or 0 }
+	end
+	table.sort(order, function(a, b)
+		if a.top ~= b.top then
+			return a.top < b.top
+		end
+		if a.left ~= b.left then
+			return a.left < b.left
+		end
+		return a.index < b.index
+	end)
+	local steps = {}
+	for n, p in ipairs(order) do
+		local step = { index = p.index }
+		if n > 1 then
+			local above, left
+			for k = 1, n - 1 do
+				local q = order[k]
+				if q.left == p.left and q.top < p.top and (not above or q.top > above.top) then
+					above = q
+				end
+				if q.top == p.top and q.left < p.left and (not left or q.left > left.left) then
+					left = q
+				end
+			end
+			if above then
+				step.from, step.dir = above.index, "Bottom"
+			elseif left then
+				step.from, step.dir = left.index, "Right"
+			else
+				step.from, step.dir = order[n - 1].index, "Right"
+			end
+		end
+		steps[#steps + 1] = step
+	end
+	return steps
+end
+
 -- How full a usage window is: ok under 70, warn 70-89, hot from 90. nil when
 -- the value is not a number.
 function M.usage_level(pct)
