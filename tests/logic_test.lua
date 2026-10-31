@@ -217,6 +217,51 @@ eq("plan nearest above wins", plan_str({ { left = 0, top = 0 }, { left = 0, top 
 eq("plan odd geometry falls back to right of previous", plan_str({ { left = 0, top = 0 }, { left = 40, top = 20 } }), "1 2:Right@1")
 eq("plan missing coords treated as 0", plan_str({ {}, {} }), "1 2:Right@1")
 
+-- preset_steps: layout presets, each pane after the first splits an earlier one
+local function areas(name)
+	local rects = { { w = 1, h = 1 } }
+	for i, step in ipairs(logic.preset_steps(name)) do
+		if i > 1 then
+			local src = rects[step.from]
+			if step.dir == "Right" then
+				rects[i] = { w = src.w * step.size, h = src.h }
+				src.w = src.w * (1 - step.size)
+			else
+				rects[i] = { w = src.w, h = src.h * step.size }
+				src.h = src.h * (1 - step.size)
+			end
+		end
+	end
+	local out = {}
+	for i, r in ipairs(rects) do
+		out[i] = ("%.3f"):format(r.w * r.h)
+	end
+	return table.concat(out, " ")
+end
+eq("preset names", table.concat(logic.PRESET_NAMES, ","), "2x2,big-3,main-side")
+eq("preset unknown", logic.preset_steps("nope"), nil)
+eq("preset nil", logic.preset_steps(nil), nil)
+eq("preset 2x2 panes", #logic.preset_steps("2x2"), 4)
+eq("preset big-3 panes", #logic.preset_steps("big-3"), 4)
+eq("preset main-side panes", #logic.preset_steps("main-side"), 2)
+eq("preset first step has no from", logic.preset_steps("2x2")[1].from, nil)
+for _, name in ipairs(logic.PRESET_NAMES) do
+	local ok = true
+	for i, step in ipairs(logic.preset_steps(name)) do
+		if i > 1 then
+			ok = ok and step.from >= 1 and step.from < i and (step.dir == "Right" or step.dir == "Bottom")
+				and step.size > 0 and step.size < 1
+		end
+	end
+	eq("preset " .. name .. " steps valid", ok, true)
+end
+eq("preset 2x2 areas equal", areas("2x2"), "0.250 0.250 0.250 0.250")
+eq("preset big-3 areas", areas("big-3"), "0.667 0.111 0.111 0.111")
+eq("preset main-side areas", areas("main-side"), "0.600 0.400")
+local copy = logic.preset_steps("2x2")
+copy[2].size = 0.9
+eq("preset steps are copies", logic.preset_steps("2x2")[2].size, 0.5)
+
 -- count_segments, right_segments
 local cs = { ["needs-you"] = 1, working = 2, idle = 0 }
 eq("count wide", logic.count_segments(cs, false)[1].text, "1 waiting · 2 working")

@@ -337,7 +337,7 @@ local function restore_layout()
 		return nil
 	end
 	local all_ok = true
-	for _, saved_window in ipairs(snap) do
+	for _, saved_window in ipairs(snap or {}) do
 		local mux_window
 		for _, saved_tab in ipairs(saved_window.tabs or {}) do
 			local panes = saved_tab.panes or {}
@@ -346,11 +346,11 @@ local function restore_layout()
 					return (type(p.cwd) == "string" and p.cwd ~= "") and { cwd = p.cwd } or {}
 				end
 				local first = panes[1] or {}
-				local tab, pane
+				local pane
 				if not mux_window then
-					tab, pane, mux_window = wezterm.mux.spawn_window(spawn_args(first))
+					_, pane, mux_window = wezterm.mux.spawn_window(spawn_args(first))
 				else
-					tab, pane = mux_window:spawn_tab(spawn_args(first))
+					_, pane = mux_window:spawn_tab(spawn_args(first))
 				end
 				local made = {}
 				for _, step in ipairs(logic.split_plan(panes)) do
@@ -375,6 +375,32 @@ local function restore_layout()
 		os.remove(layout_path("layout.prev.json"))
 	end
 	return all_ok
+end
+
+-- Opens a new tab in the window, shaped by a preset (see logic.preset_steps),
+-- every pane in the focused pane's directory running claude. Live panes cannot
+-- be moved into a new shape, so a preset always builds a fresh tab.
+local function open_preset(window, pane, name)
+	local steps = logic.preset_steps(name)
+	if not steps then
+		return false
+	end
+	local cwd = pane_cwd(pane, M.state_of(pane:pane_id()))
+	local has_cwd = type(cwd) == "string" and cwd ~= ""
+	local tab, first = window:mux_window():spawn_tab(has_cwd and { cwd = cwd } or {})
+	local made = { first }
+	for i = 2, #steps do
+		local args = { direction = steps[i].dir, size = steps[i].size }
+		if has_cwd then
+			args.cwd = cwd
+		end
+		made[i] = made[steps[i].from]:split(args)
+	end
+	for _, p in ipairs(made) do
+		p:send_text("claude\n")
+	end
+	tab:activate()
+	return true
 end
 
 local function wipe_state_files()
@@ -460,6 +486,19 @@ function M.setup(config)
 		pcall(archive_layout)
 		wipe_state_files()
 	end)
+
+	-- "layout-preset-<name>" opens a new tab with that preset. The hotkeys are
+	-- bound by hand in ~/.wezterm.lua: EmitEvent("layout-preset-2x2") and so on.
+	for _, name in ipairs(logic.PRESET_NAMES) do
+		wezterm.on("layout-preset-" .. name, function(window, pane)
+			local ok = pcall(open_preset, window, pane, name)
+			if not ok then
+				pcall(function()
+					window:toast_notification("WezTerm", "Layout preset failed", nil, 4000)
+				end)
+			end
+		end)
+	end
 
 	-- Reopens the layout saved before the last restart. The hotkey is bound by
 	-- hand in ~/.wezterm.lua: EmitEvent("restore-layout").
