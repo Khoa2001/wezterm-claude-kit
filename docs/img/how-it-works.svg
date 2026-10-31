@@ -24,8 +24,8 @@
 <rect x="706" y="30" width="270" height="82" rx="8" fill="#1f1d2e" stroke="#757477"/><text x="720" y="54" fill="#e0def4" font-size="13" font-weight="bold" text-anchor="start" xml:space="preserve">3a. Status line</text><text x="720" y="72" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">repo, branch, changes, context</text>
 <rect x="706" y="120" width="270" height="82" rx="8" fill="#1f1d2e" stroke="#757477"/><text x="720" y="144" fill="#e0def4" font-size="13" font-weight="bold" text-anchor="start" xml:space="preserve">3b. WezTerm tab bar</text><text x="720" y="162" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">dots, rose tint, counts, usage</text>
 <line x1="154" y1="204" x2="154" y2="258" stroke="#7f7c8f" stroke-width="1.5" marker-end="url(#ah)"/>
-<text x="166" y="236" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">a turn finishes (Stop)</text>
-<rect x="24" y="260" width="260" height="74" rx="8" fill="#1f1d2e" stroke="#e8b450"/><text x="38" y="284" fill="#e0def4" font-size="13" font-weight="bold" text-anchor="start" xml:space="preserve">Ping sound</text><text x="38" y="302" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">so you know without looking</text>
+<text x="166" y="236" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">a turn ends or a session waits</text>
+<rect x="24" y="260" width="260" height="74" rx="8" fill="#1f1d2e" stroke="#e8b450"/><text x="38" y="284" fill="#e0def4" font-size="13" font-weight="bold" text-anchor="start" xml:space="preserve">Sound and banner</text><text x="38" y="302" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">ping when done, banner if it waits</text>
 <text x="360" y="284" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">The hooks only write the files, and the WezTerm tab bar reads them. The status line</text>
 <text x="360" y="302" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">reads live git and its pane number. Nothing runs in the background.</text>
 </svg>
