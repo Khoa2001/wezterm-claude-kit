@@ -255,6 +255,43 @@ function M.split_plan(panes)
 	return steps
 end
 
+-- Layout presets for a new tab. Each step after the first splits an earlier
+-- pane (`from`, 1-based) toward `dir`; `size` is the share the new pane takes.
+local PRESETS = {
+	["2x2"] = {
+		{},
+		{ from = 1, dir = "Right", size = 0.5 },
+		{ from = 1, dir = "Bottom", size = 0.5 },
+		{ from = 2, dir = "Bottom", size = 0.5 },
+	},
+	-- One big pane on the left (2/3), three equal panes stacked on the right.
+	["big-3"] = {
+		{},
+		{ from = 1, dir = "Right", size = 1 / 3 },
+		{ from = 2, dir = "Bottom", size = 2 / 3 },
+		{ from = 3, dir = "Bottom", size = 0.5 },
+	},
+	["main-side"] = {
+		{},
+		{ from = 1, dir = "Right", size = 0.4 },
+	},
+}
+
+M.PRESET_NAMES = { "2x2", "big-3", "main-side" }
+
+-- Steps for a preset (a fresh copy), or nil for an unknown name.
+function M.preset_steps(name)
+	local preset = type(name) == "string" and PRESETS[name] or nil
+	if not preset then
+		return nil
+	end
+	local out = {}
+	for i, step in ipairs(preset) do
+		out[i] = { from = step.from, dir = step.dir, size = step.size }
+	end
+	return out
+end
+
 -- How full a usage window is: ok under 70, warn 70-89, hot from 90. nil when
 -- the value is not a number.
 function M.usage_level(pct)
