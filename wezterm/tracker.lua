@@ -227,6 +227,156 @@ local function write_positions()
 	end
 end
 
+-- Layout snapshot for session restore. layout.json follows the live windows;
+-- at startup it moves to layout.prev.json, which the "restore-layout" event
+-- reads. Both sit outside the pane state dir, so the startup wipe leaves them.
+local function layout_path(name)
+	local dir = os.getenv("SESSION_TRACKER_LAYOUT_DIR") or ((os.getenv("HOME") or "") .. "/.claude/state")
+	return dir .. "/" .. name
+end
+
+local function pane_cwd(pane, rec)
+	if rec and type(rec.cwd) == "string" and rec.cwd ~= "" then
+		return rec.cwd
+	end
+	local ok, url = pcall(function()
+		return pane:get_current_working_dir()
+	end)
+	if ok and url then
+		if type(url) == "string" then
+			return (url:gsub("^file://[^/]*", ""))
+		end
+		if type(url.file_path) == "string" then
+			return url.file_path
+		end
+	end
+	return nil
+end
+
+-- {windows -> {tabs -> {panes -> {cwd=, sid=, left=, top=}}}} of everything open.
+local function snapshot_layout()
+	local snap = {}
+	for _, window in ipairs(wezterm.mux.all_windows()) do
+		local tabs = {}
+		for _, tab in ipairs(window:tabs()) do
+			local panes = {}
+			for _, info in ipairs(tab:panes_with_info()) do
+				local rec = M.state_of(info.pane:pane_id())
+				local sid = rec and logic.valid_sid(rec.session_id) and rec.session_id or nil
+				panes[#panes + 1] = { cwd = pane_cwd(info.pane, rec), sid = sid, left = info.left, top = info.top }
+			end
+			tabs[#tabs + 1] = { panes = panes }
+		end
+		snap[#snap + 1] = { tabs = tabs }
+	end
+	return snap
+end
+
+local function read_layout(name)
+	local ok, snap = pcall(function()
+		local f = io.open(layout_path(name), "r")
+		if not f then
+			return nil
+		end
+		local content = f:read("*a")
+		f:close()
+		return wezterm.json_parse(content)
+	end)
+	if ok and type(snap) == "table" then
+		return snap
+	end
+	return nil
+end
+
+-- Writes layout.json when it changed and holds a Claude session. An empty or
+-- Claude-less snapshot never replaces a good one.
+local last_layout_json, last_layout_at = nil, 0
+
+local function write_layout()
+	local now = os.time()
+	if now - last_layout_at < 10 then
+		return
+	end
+	last_layout_at = now
+	local snap = snapshot_layout()
+	if not logic.has_claude(snap) then
+		return
+	end
+	local json = wezterm.json_encode(snap)
+	if json == last_layout_json then
+		return
+	end
+	local path = layout_path("layout.json")
+	local tmp = path .. ".tmp"
+	local f = io.open(tmp, "w")
+	if not f then
+		return
+	end
+	f:write(json)
+	f:close()
+	if os.rename(tmp, path) then
+		last_layout_json = json
+	else
+		os.remove(tmp)
+	end
+end
+
+-- At startup: keep the last good snapshot as layout.prev.json, unless it has no
+-- Claude session (a quick second restart must not lose the earlier one).
+local function archive_layout()
+	if logic.has_claude(read_layout("layout.json")) then
+		os.rename(layout_path("layout.json"), layout_path("layout.prev.json"))
+	end
+end
+
+-- Opens the saved windows, tabs and panes, and resumes each Claude session.
+-- Returns true when nothing failed.
+local function restore_layout()
+	local snap = read_layout("layout.prev.json")
+	if not logic.has_claude(snap) then
+		return nil
+	end
+	local all_ok = true
+	for _, saved_window in ipairs(snap) do
+		local mux_window
+		for _, saved_tab in ipairs(saved_window.tabs or {}) do
+			local panes = saved_tab.panes or {}
+			local ok = pcall(function()
+				local function spawn_args(p)
+					return (type(p.cwd) == "string" and p.cwd ~= "") and { cwd = p.cwd } or {}
+				end
+				local first = panes[1] or {}
+				local tab, pane
+				if not mux_window then
+					tab, pane, mux_window = wezterm.mux.spawn_window(spawn_args(first))
+				else
+					tab, pane = mux_window:spawn_tab(spawn_args(first))
+				end
+				local made = {}
+				for _, step in ipairs(logic.split_plan(panes)) do
+					local saved = panes[step.index]
+					if step.from then
+						local args = spawn_args(saved)
+						args.direction = step.dir
+						made[step.index] = made[step.from]:split(args)
+					else
+						made[step.index] = pane
+					end
+					local text = logic.resume_text(saved.sid)
+					if text then
+						made[step.index]:send_text(text)
+					end
+				end
+			end)
+			all_ok = all_ok and ok
+		end
+	end
+	if all_ok then
+		os.remove(layout_path("layout.prev.json"))
+	end
+	return all_ok
+end
+
 local function wipe_state_files()
 	pcall(function()
 		for _, path in ipairs(wezterm.glob(state_dir() .. "/*.json")) do
@@ -270,6 +420,7 @@ function M.setup(config)
 
 	wezterm.on("update-right-status", function(window, _)
 		pcall(write_positions)
+		pcall(write_layout)
 		-- No width (API change, odd window) counts as wide.
 		local cols_ok, cols = pcall(function()
 			return window:active_tab():get_size().cols
@@ -306,7 +457,25 @@ function M.setup(config)
 	-- a dot on an unrelated pane. The handler only wipes; WezTerm still spawns
 	-- the default window (and honors `start --workspace` and `-- cmd`) itself.
 	wezterm.on("gui-startup", function()
+		pcall(archive_layout)
 		wipe_state_files()
+	end)
+
+	-- Reopens the layout saved before the last restart. The hotkey is bound by
+	-- hand in ~/.wezterm.lua: EmitEvent("restore-layout").
+	wezterm.on("restore-layout", function(window, _)
+		local ok, result = pcall(restore_layout)
+		local msg
+		if not ok or result == false then
+			msg = "Restore hit an error; saved layout kept"
+		elseif result == nil then
+			msg = "No saved Claude layout to restore"
+		else
+			msg = "Layout restored"
+		end
+		pcall(function()
+			window:toast_notification("WezTerm", msg, nil, 4000)
+		end)
 	end)
 end
 

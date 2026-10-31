@@ -20,8 +20,13 @@ echo "backup: $backup"
 tmp=$(mktemp "$settings.tmp.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
 
-jq '
-  def ours: any(.hooks[]?; (.command // "") | (contains("wezterm-claude-kit/hooks/track-state.sh") or contains("wezterm-claude-kit/hooks/ultracave-check.sh") or contains("wezterm-claude-kit/hooks/ultracave-remind.sh") or contains("wezterm-claude-kit/hooks/ultracave-nudge.sh")));
+# install.sh writes "$HERE/hooks/<name>.sh", so this checkout's own path matches
+# even when its folder is not called wezterm-claude-kit (a git worktree).
+HERE=$(cd "$(dirname "$0")" && pwd)
+
+jq --arg here "$HERE" '
+  def mine(name): contains("wezterm-claude-kit/hooks/" + name) or contains($here + "/hooks/" + name);
+  def ours: any(.hooks[]?; (.command // "") | (mine("track-state.sh") or mine("ultracave-check.sh") or mine("ultracave-remind.sh") or mine("ultracave-nudge.sh")));
   (if .hooks then
      .hooks |= with_entries(
        if (.value | type) == "array" and any(.value[]?; ours)
@@ -29,7 +34,7 @@ jq '
        else . end
        | select(.value != []))
    else . end)
-  | if (.statusLine.command // "" | contains("wezterm-claude-kit/statusline"))
+  | if (.statusLine.command // "" | (contains("wezterm-claude-kit/statusline") or contains($here + "/statusline")))
     then .statusLine.command = "bash ~/.claude/statusline-command.sh" | del(.statusLine.refreshInterval) else . end
 ' "$settings" > "$tmp"
 
