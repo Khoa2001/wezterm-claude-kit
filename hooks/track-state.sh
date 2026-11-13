@@ -15,29 +15,6 @@ play_sound() {
   ( "$player" "$sound" </dev/null >/dev/null 2>&1 & )
 }
 
-# Desktop notice that this pane needs the user, only while WezTerm is not the
-# frontmost app. Repo and branch come from the user's repo and may hold quotes,
-# so the text goes to osascript as an argument and never into the script text.
-# lsappinfo answers in about 6 ms and needs no Automation permission; osascript
-# with System Events takes about 600 ms and asks for one.
-# SESSION_TRACKER_NOTIFY="" disables it; SESSION_TRACKER_NOTIFIER and
-# SESSION_TRACKER_FRONTMOST (a command printing the app name) are test hooks.
-post_notice() { # repo branch
-  [ -n "${SESSION_TRACKER_NOTIFY-1}" ] || return 0
-  notifier=${SESSION_TRACKER_NOTIFIER:-osascript}
-  command -v "$notifier" >/dev/null 2>&1 || return 0
-  label=$1
-  [ -n "$1" ] && [ -n "$2" ] && label=$1:$2
-  msg="${label:-Claude} needs you"
-  (
-    front=$(sh -c "${SESSION_TRACKER_FRONTMOST:-lsappinfo info -only name \"\$(lsappinfo front)\"}" 2>/dev/null)
-    case $front in *[Ww]ez[Tt]erm*) exit 0 ;; esac
-    "$notifier" -e 'on run argv' \
-      -e 'display notification (item 1 of argv) with title "Claude Code"' \
-      -e 'end run' -- "$msg"
-  ) </dev/null >/dev/null 2>&1 &
-}
-
 main() {
   [ -n "${WEZTERM_PANE:-}" ] || return 0
   input=$(cat) || return 0
@@ -120,7 +97,6 @@ EOF
   # for the same prompt must not ring twice.
   if [ "$state" = needs-you ] && [ "$old_state" != needs-you ]; then
     play_sound "${SESSION_TRACKER_SOUND_NEEDS-/System/Library/Sounds/Glass.aiff}"
-    post_notice "$repo" "$branch"
   fi
 }
 
