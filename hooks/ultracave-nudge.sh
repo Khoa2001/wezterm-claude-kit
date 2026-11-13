@@ -19,6 +19,6 @@ if [ "$n" -lt "$every" ]; then
   exit 0
 fi
 printf '0' > "$counter" 2>/dev/null
-jq -n --arg c "Reminder: ultracave still on. Text between tool calls and final report: fragments, no articles, no filler, no pleasantries. Code, commits, docs stay normal." \
+jq -n --arg c "Reminder: ultracave still on. Text between tool calls and final report: fragments or short simple sentences, common words, no articles, no filler, no pleasantries. Code, commits, docs stay normal." \
   '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'
 exit 0

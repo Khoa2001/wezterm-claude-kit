@@ -23,8 +23,8 @@ Needs `jq`, `git` and `luajit` (no `lua`, `bats` or `shellcheck`). A test file r
 Claude hooks write per-pane state files, and two readers render them. No daemon.
 
 - `hooks/track-state.sh`: registered for ten hook events. Maps the event to `working`, `needs-you` or `idle` and writes `$SESSION_TRACKER_STATE_DIR/<WEZTERM_PANE>.json` (default `~/.claude/state/panes`). Also plays the done sound on `Stop`. Subagent events (`agent_id` present) are dropped, except `PermissionRequest` and `Notification`, which still mean the pane needs the user.
-- `hooks/ultracave-check.sh`: `Stop` hook. Scores `last_assistant_message` (transcript is fallback, it lags at Stop time) and on filler phrases or too many articles writes a flag file under `$SESSION_TRACKER_ULTRACAVE_DIR` (default `~/.claude/state/ultracave/<session_id>`). Never blocks: a block prints a "Stop hook error" row. Prints nothing, exits 0.
-- `hooks/ultracave-remind.sh`: `UserPromptSubmit` hook. Reads and deletes the flag, injects one "stay ultracave" `additionalContext`.
+- `hooks/ultracave-check.sh`: `Stop` hook. Scores `last_assistant_message` (transcript is fallback, it lags at Stop time) for filler phrases, article density and hard words (9+ letters not in `hooks/words/common.txt` or `tech.txt`, or in a banned list; non-English replies skipped). On fail it blocks once with a rewrite reason. If the rewrite also fails (`stop_hook_active`), it writes a flag file under `$SESSION_TRACKER_ULTRACAVE_DIR` (default `~/.claude/state/ultracave/<session_id>`) instead of blocking again. Tune the word lists there when a good reply gets blocked.
+- `hooks/ultracave-remind.sh`: `UserPromptSubmit` hook. Injects an "ultracave + basic English" rule on every prompt, plus why the last reply failed when the flag exists (then deletes it).
 - `hooks/ultracave-nudge.sh`: `PostToolUse` hook. Every Nth tool call of a session (`SESSION_TRACKER_ULTRACAVE_EVERY`, default 8) injects a short "ultracave still on" reminder; `ultracave-remind.sh` resets the counter on each prompt.
 - `statusline/statusline-command.sh`: model name (`opus`, `sonnet`, `haiku`, `fable`), repo, branch, `±N` changed lines, `↑N` ahead and context percent. Git data comes from live git via `lib/git-info.sh`, which the hook also sources. It does not read the state `.json` files, only `<WEZTERM_PANE>.pos` (pane number badge, written by `tracker.lua`). It fits itself to the pane width, found by walking up to the first parent process with a tty and running `stty`.
 - `wezterm/tracker.lua` + `wezterm/logic.lua`: tracker is the WezTerm glue (reads state files, tab view, right status, `gui-startup` wipe); logic holds the pure functions (`worst`, `counts`, `summary`, `usage_text`, `tab_label`, `right_status`) so they run under plain luajit.
@@ -37,7 +37,7 @@ Claude hooks write per-pane state files, and two readers render them. No daemon.
 
 ## Rules that are easy to break
 
-- Hooks must always exit 0 and never print to stdout or block (Claude waits on them). Failure must mean "shows nothing".
+- Hooks must always exit 0 and never print to stdout or block (Claude waits on them). Failure must mean "shows nothing". One deliberate exception: `ultracave-check.sh` prints a `decision: block` once per reply (guarded by `stop_hook_active`, so no loop).
 - A Lua error inside `format-tab-title` breaks the whole tab bar. Wrap new runtime code in `pcall`, and keep the `pcall(require, "tracker")` stub in `~/.wezterm.lua`.
 - The status line runs on every refresh, so keep its git calls few and never `git fetch`.
 - Tests must not play real sounds: `tests/track_state_test.sh` exports `SESSION_TRACKER_SOUND=""` and `SESSION_TRACKER_SOUND_NEEDS=""`. Other test-facing env overrides: `SESSION_TRACKER_STATE_DIR`, `SESSION_TRACKER_PLAYER`, `SESSION_TRACKER_USAGE_CACHE`, `SESSION_TRACKER_COLS` (status line width).
