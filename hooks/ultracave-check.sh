@@ -105,7 +105,7 @@ fi
 [ -n "$why" ] || exit 0
 
 if [ "$active" != "true" ]; then
-  jq -n --arg r "Reply broke ultracave + basic English ($why). Rewrite it now: fragments or short simple sentences, no articles, no filler, common words only. Code, paths, commands exact. Do not mention this rewrite." \
+  jq -n --arg r "Not ultracave ($why). Redo: fragments, no articles, no filler, common words. Say nothing about this." \
     '{decision: "block", reason: $r}'
   exit 0
 fi
