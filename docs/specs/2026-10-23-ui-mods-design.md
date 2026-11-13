@@ -9,7 +9,7 @@ Illustrations: https://claude.ai/artifact/EVjmvVzYTFVYhkXUtNuc42 (ideas 2, 5, 6,
 - A pane that needs the user is noticed fast, from across the screen.
 - Account usage shows how close the limit is without reading digits.
 - The counts stay readable in a narrow window.
-- A permission prompt and a finished task sound different, and a desktop notice covers the case where WezTerm is in the background.
+- A permission prompt and a finished task sound different. (Desktop notice removed 2026-11-13.)
 
 ## Non-goals
 
@@ -50,30 +50,27 @@ The usage text already includes the reset countdown (`2h 10m 38% │ 4d 3h 74%`)
 
 Order stays usage first, counts last, because WezTerm clips from the left. Pure formatting lives in `logic.lua` (`right_status` gets a `compact` argument) so luajit tests cover it.
 
-## 9. Sounds and desktop notice
+## 9. Sounds
 
 In `track-state.sh`, when the new state is needs-you and the old state was not:
 
 - Play the needs-you sound, detached like the done sound. Default `/System/Library/Sounds/Glass.aiff` (my call). Env `SESSION_TRACKER_SOUND_NEEDS`, empty disables.
-- If WezTerm is not the frontmost app, post a notification `<repo>:<branch> needs you`. Env `SESSION_TRACKER_NOTIFY`, empty disables. Env `SESSION_TRACKER_NOTIFIER` swaps `osascript` for tests.
 
 Transition only, so a `PermissionRequest` followed by a `Notification` for the same prompt rings once.
 
-The frontmost check and the notice both run inside the detached subshell, so a slow `osascript` never delays Claude. Repo and branch come from the user's repo and can hold quotes, so they are passed as `osascript` arguments (`on run argv`), never spliced into the script text.
-
 The done sound on `Stop` is unchanged.
 
-`tests/track_state_test.sh` must export `SESSION_TRACKER_SOUND_NEEDS=""` and `SESSION_TRACKER_NOTIFY=""` next to the existing `SESSION_TRACKER_SOUND=""`, then enable them per test with stub players that record their arguments.
+`tests/track_state_test.sh` must export `SESSION_TRACKER_SOUND_NEEDS=""` next to the existing `SESSION_TRACKER_SOUND=""`, then enable it per test with stub players that record their arguments.
 
 ## Tests
 
 - `luajit tests/logic_test.lua`: `pulse_on` (before, during, after the window, nil), `usage_level` (69, 70, 89, 90, nil, string), compact and wide `right_status`.
-- `sh tests/track_state_test.sh`: `since` kept on same state, reset on change, reset on a corrupt old file; needs-you sound once for the double event; no sound when state stays needs-you; notice skipped when WezTerm is frontmost; a branch name with a quote does not break the notice.
+- `sh tests/track_state_test.sh`: `since` kept on same state, reset on change, reset on a corrupt old file; needs-you sound once for the double event; no sound when state stays needs-you.
 - `sh tests/run.sh` passes before and after.
 
 ## Left to the builder
 
-Brighter-rose hex value, notifier title wording, exact segment data shape, whether the frontmost check uses `osascript` or `lsappinfo` (pick the faster one and measure).
+Brighter-rose hex value, exact segment data shape.
 
 ## Calls I made (check these)
 

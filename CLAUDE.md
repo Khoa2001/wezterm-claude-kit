@@ -40,7 +40,7 @@ Claude hooks write per-pane state files, and two readers render them. No daemon.
 - Hooks must always exit 0 and never print to stdout or block (Claude waits on them). Failure must mean "shows nothing".
 - A Lua error inside `format-tab-title` breaks the whole tab bar. Wrap new runtime code in `pcall`, and keep the `pcall(require, "tracker")` stub in `~/.wezterm.lua`.
 - The status line runs on every refresh, so keep its git calls few and never `git fetch`.
-- Tests must not play real sounds or post real notices: `tests/track_state_test.sh` exports `SESSION_TRACKER_SOUND=""`, `SESSION_TRACKER_SOUND_NEEDS=""` and `SESSION_TRACKER_NOTIFY=""`. Other test-facing env overrides: `SESSION_TRACKER_STATE_DIR`, `SESSION_TRACKER_PLAYER`, `SESSION_TRACKER_NOTIFIER`, `SESSION_TRACKER_FRONTMOST` (command printing the frontmost app name), `SESSION_TRACKER_USAGE_CACHE`, `SESSION_TRACKER_COLS` (status line width).
+- Tests must not play real sounds: `tests/track_state_test.sh` exports `SESSION_TRACKER_SOUND=""` and `SESSION_TRACKER_SOUND_NEEDS=""`. Other test-facing env overrides: `SESSION_TRACKER_STATE_DIR`, `SESSION_TRACKER_PLAYER`, `SESSION_TRACKER_USAGE_CACHE`, `SESSION_TRACKER_COLS` (status line width).
 - `install.sh` installs hook commands guarded with `if [ -f ... ]` so a moved folder degrades quietly. `uninstall.sh` finds its entries by the substring `wezterm-claude-kit/hooks/track-state.sh` (and the same for the other hooks and `statusline`), or by its own checkout path, which is what makes it work in a git worktree. Keep that path segment stable.
 
 ## WezTerm facts (build 20240203) learned the hard way

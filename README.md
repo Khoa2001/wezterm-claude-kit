@@ -10,7 +10,7 @@ Run several Claude Code sessions in WezTerm panes and see, at a glance, which on
 
 - **Tab bar.** Each tab shows `repo:branch` and a dot for its busiest state. A tab that needs you turns rose. The right side shows how many sessions are waiting, working and idle, plus your 5-hour and 7-day usage. In a narrow window the counts become colored dots.
 - **Status line per pane.** Model, repo, branch, changed lines (`±N`), commits ahead (`↑N`) and context percent (green, amber, rose). With several panes in a tab, each gets a numbered badge in its own color. It shortens itself to fit narrow panes and always keeps the context percent.
-- **Sound and banner.** A ping when a turn ends. A different sound plus a macOS banner when a session needs you, only while WezTerm is not the frontmost app.
+- **Sounds.** A ping when a turn ends. A different sound when a session needs you.
 - **Dimmed inactive panes.** Your focused pane stays bright. `⌘⇧D` turns the dimming off and on.
 - **Layouts.** One key opens a new tab with `claude` in every pane (2x2 or 4x2).
 - **Restore.** After a WezTerm restart, one key brings back your panes and resumes each Claude session.
@@ -62,7 +62,6 @@ All optional. Set them in the `env` block of `~/.claude/settings.json` or in you
 | --- | --- |
 | `SESSION_TRACKER_SOUND` | Sound file for a finished turn. Empty turns it off. Default: `Ping.aiff`. |
 | `SESSION_TRACKER_SOUND_NEEDS` | Sound file when a session needs you. Empty turns it off. Default: `Glass.aiff`. |
-| `SESSION_TRACKER_NOTIFY` | Set to empty to turn the macOS banner off. |
 | `SESSION_TRACKER_PLAYER` | Program that plays sounds. Default: `afplay`. |
 
 ## Good to know
