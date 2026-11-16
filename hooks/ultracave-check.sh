@@ -93,8 +93,9 @@ hardlist=$(printf '%s\n' "$scan" | sed -n 2p | sed 's/^ //')
 banlist=$(printf '%s\n' "$scan" | sed -n 3p | sed 's/^ //')
 
 why=""
-# Ultracave drops articles: flag any filler, or articles above 4% of words.
-if [ "$filler" -ge 1 ] || [ $((articles * 100)) -gt $((words * 4)) ]; then
+# Ultracave drops articles: flag any filler, or articles above 8% of words
+# (4% blocked too many good replies, mostly long reports).
+if [ "$filler" -ge 1 ] || [ $((articles * 100)) -gt $((words * 8)) ]; then
   why="filler=$filler, articles=$articles/$words words"
 fi
 # Basic English: any banned word, or 2+ hard words above 5% of checked words

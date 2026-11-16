@@ -84,6 +84,18 @@ test_passes_terse_reply() {
 }
 
 
+test_passes_few_articles() {
+  reset
+  assert_eq "under 8% articles" "" "$(run_hook "Bug in auth middleware. Token expiry check uses wrong operator. Change the operator to <= and rerun tests. Handler runs after the check now. Request passes when token has time left. Old tokens fail as before. Logs show a clean run on all paths here.")"
+}
+
+test_blocks_many_articles() {
+  reset
+  out=$(run_hook "The bug is in the auth middleware. The token expiry check uses the wrong operator. Change the operator and rerun the tests. The handler runs after the check now. The request passes when the token has time left. Old tokens fail as before here.")
+  assert_eq "block decision" block "$(printf '%s' "$out" | jq -r .decision)"
+  assert_contains "reason has article counts" "$(printf '%s' "$out" | jq -r .reason)" "articles="
+}
+
 test_skips_questions_and_short_replies() {
   assert_eq "question" "" "$(run_hook "Which settings file should the hook go into, the user one or the project one for this repo, and why would you prefer it?")"
   assert_eq "short" "" "$(run_hook "Sure, done.")"
@@ -131,7 +143,7 @@ test_nudge_silent_without_session_and_exits_zero() {
   printf 'garbage' | sh "$NUDGE"; assert_eq "exit 0" 0 "$?"
 }
 
-for t in test_nudge_fires_every_nth_call_and_remind_resets test_nudge_silent_without_session_and_exits_zero test_blocks_filler_reply_once test_second_failure_flags_without_blocking test_remind_always_injects_and_clears_flag test_remind_silent_without_session test_blocks_banned_word test_blocks_many_hard_words test_one_odd_name_is_fine test_ignores_paths_and_code_words test_skips_non_english test_passes_terse_reply \
+for t in test_nudge_fires_every_nth_call_and_remind_resets test_nudge_silent_without_session_and_exits_zero test_blocks_filler_reply_once test_second_failure_flags_without_blocking test_remind_always_injects_and_clears_flag test_remind_silent_without_session test_blocks_banned_word test_blocks_many_hard_words test_one_odd_name_is_fine test_ignores_paths_and_code_words test_skips_non_english test_passes_terse_reply test_passes_few_articles test_blocks_many_articles \
   test_skips_questions_and_short_replies test_ignores_code_blocks test_prefers_last_assistant_message_over_stale_transcript test_exits_zero_on_bad_input; do
   ( "$t" )
 done
