@@ -5,16 +5,6 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/../lib/git-info.sh"
 
-# Play a sound file. Runs detached so a slow player never delays Claude; an
-# empty file name disables it, SESSION_TRACKER_PLAYER swaps afplay.
-play_sound() {
-  sound=$1
-  [ -n "$sound" ] || return 0
-  player=${SESSION_TRACKER_PLAYER:-afplay}
-  command -v "$player" >/dev/null 2>&1 || return 0
-  ( "$player" "$sound" </dev/null >/dev/null 2>&1 & )
-}
-
 main() {
   [ -n "${WEZTERM_PANE:-}" ] || return 0
   input=$(cat) || return 0
@@ -90,13 +80,6 @@ EOF
     mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp"
   else
     rm -f "$tmp"
-  fi
-
-  [ "$event" = Stop ] && play_sound "${SESSION_TRACKER_SOUND-/System/Library/Sounds/Ping.aiff}"
-  # Only the move into needs-you rings: a PermissionRequest and the Notification
-  # for the same prompt must not ring twice.
-  if [ "$state" = needs-you ] && [ "$old_state" != needs-you ]; then
-    play_sound "${SESSION_TRACKER_SOUND_NEEDS-/System/Library/Sounds/Glass.aiff}"
   fi
 }
 
