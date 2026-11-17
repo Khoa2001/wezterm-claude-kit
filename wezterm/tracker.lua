@@ -473,30 +473,14 @@ function M.setup(config)
 	-- bound by hand in ~/.wezterm.lua: EmitEvent("layout-preset-2x2") and so on.
 	for _, name in ipairs(logic.PRESET_NAMES) do
 		wezterm.on("layout-preset-" .. name, function(window, pane)
-			local ok = pcall(open_preset, window, pane, name)
-			if not ok then
-				pcall(function()
-					window:toast_notification("WezTerm", "Layout preset failed", nil, 4000)
-				end)
-			end
+			pcall(open_preset, window, pane, name)
 		end)
 	end
 
 	-- Reopens the layout saved before the last restart. The hotkey is bound by
 	-- hand in ~/.wezterm.lua: EmitEvent("restore-layout").
-	wezterm.on("restore-layout", function(window, _)
-		local ok, result = pcall(restore_layout)
-		local msg
-		if not ok or result == false then
-			msg = "Restore hit an error; saved layout kept"
-		elseif result == nil then
-			msg = "No saved Claude layout to restore"
-		else
-			msg = "Layout restored"
-		end
-		pcall(function()
-			window:toast_notification("WezTerm", msg, nil, 4000)
-		end)
+	wezterm.on("restore-layout", function(_, _)
+		pcall(restore_layout)
 	end)
 end
 
