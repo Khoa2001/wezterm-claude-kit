@@ -59,7 +59,7 @@ To remove everything, run `bash uninstall.sh`. It backs up `settings.json` again
 - **Pressing Esc mid-turn** can leave a pane yellow until its next event.
 - **Usage shows `n/a`** when the numbers are older than 15 minutes.
 - **Layouts open a new tab**, since WezTerm cannot reshape live panes. Restore opens new windows with even pane sizes; close WezTerm's empty startup window. Non-Claude panes come back as plain shells.
-- **`install.sh` also adds three small hooks** that keep Claude's replies in the terse "ultracave" style: one flags a wordy reply, one reminds Claude on your next prompt, one nudges every 8th tool call (`SESSION_TRACKER_ULTRACAVE_EVERY`). `uninstall.sh` removes them.
+- **`install.sh` also adds three small hooks** that keep Claude's replies in the terse "ultracave" style: one blocks a wordy or non-basic-English reply once so Claude rewrites it (a second miss only sets a flag, so it never loops), one restates the rule on every prompt, one nudges every 8th tool call (`SESSION_TRACKER_ULTRACAVE_EVERY`). `uninstall.sh` removes them.
 
 ## How it works
 
@@ -75,6 +75,7 @@ Claude Code runs a hook script on events such as a prompt, a tool call, a permis
 - **Status line:** `statusline/statusline-command.sh`. Git data is live; the ahead count compares with `origin`'s default branch and never runs `git fetch`. Pane width comes from the first parent process with a terminal, read with `stty`.
 - **Pane numbers:** WezTerm writes `<WEZTERM_PANE>.pos` next to the state files while a tab has several panes.
 - **Layout snapshot:** `~/.claude/state/layout.json`, written every 10 seconds when it changed and holds a Claude session. At startup it moves to `layout.prev.json`, which `⌘⇧R` reads.
+- **Ultracave check:** `hooks/ultracave-check.sh` scores filler phrases, article density and long uncommon words (lists in `hooks/words/`). The flag file lives in `~/.claude/state/ultracave/<session_id>` (`SESSION_TRACKER_ULTRACAVE_DIR`); the next prompt reads it, then deletes it.
 - **Usage numbers:** read from `/tmp/.claude_usage_cache`, written by `~/.claude/fetch-usage.sh`, which is not part of this repo.
 - **Tests:** `sh tests/run.sh` (needs `jq`, `git` and `luajit`).
 - **Contributing:** see [`CLAUDE.md`](CLAUDE.md) for the architecture and rules that are easy to break, and [`docs/`](docs/) for the original design and plan.
